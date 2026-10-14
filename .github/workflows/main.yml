@@ -1,19 +1,19 @@
 # ========================================
-# GKI 内核构建主入口
+# Main Entry Point for GKI Kernel Builds
 # ========================================
-# 此工作流是项目的统一入口点，用于：
-# 1. 构建所有版本的 GKI 内核
-# 2. 收集补丁冲突文件用于调试
-# 3. 创建 GitHub Release (可选)
+# This workflow serves as the unified entry point for the project to:
+# 1. Build all versions of the GKI kernel
+# 2. Collect patch conflict files for debugging
+# 3. Create a GitHub Release (optional)
 # ========================================
 
-name: 构建内核
+name: Build kernel
 
-# 适配 Node.js 24
+# adaptation Node.js 24
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
-# 并发控制：同一分支只运行一个实例，新运行会取消旧的
+# Concurrency control: Only one instance runs per branch; a new execution cancels the old one.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -25,9 +25,9 @@ permissions:
 on:
   workflow_dispatch:
     inputs:
-      # ==================== 发布配置 ====================
+      # ==================== Publish Configuration ====================
       release_type:
-        description: "发布类型"
+        description: "Release Type"
         type: choice
         options:
           - Actions
@@ -35,27 +35,27 @@ on:
           - Release
         default: Actions
 
-      # ==================== KernelSU 配置 ====================
-      # KernelSU 变体固定为 BakaSU
+      # ==================== KernelSU Configuration ====================
+      # KernelSU optimized BakaSU
       kernelsu_branch:
-        description: "BakaSU branch (main/dev/自定义，留空使用main)"
+        description: "BakaSU branch (main/dev/[custom setting]; leave blank to use 'main')"
         type: string
         default: "main"
         required: false
 
-      # ==================== 可选配置 ====================
+      # ==================== Optional configurations ====================
       version:
-        description: "自定义版本名 (可选)"
+        description: "Custom version name (optional)"
         type: string
         default: ""
         required: false
       build_time:
-        description: "自定义构建时间 (可选，N或留空=当前UTC)"
+        description: "Custom build time (optional; N or leave blank = current UTC)"
         type: string
-        default: "Sun Dec 01 08:10:00 UTC 2024"
+        default: ""
         required: false
       droidspaces:
-        description: "Droidspaces 容器支持 (5.10~6.6: 槽位补丁, 6.12+: 开/关)"
+        description: "Droidspaces container support (5.10–6.6: slot patch; 6.12+: on/off)"
         type: choice
         options:
           - "off"
@@ -64,48 +64,48 @@ on:
           - "345"
         default: "off"
       droidspaces_ntsync:
-        description: "启用 Droidspaces 容器 NTSync 支持（需启用 Droidspaces）"
+        description: "Enable Droidspaces container NTSync support (requires Droidspaces to be enabled)"
         type: boolean
         default: false
       build_bypass:
-        description: "同时构建普通内核和 Bypass 内核"
+        description: "Build the standard kernel and the bypass kernel"
         type: boolean
         default: false
 
-      # ==================== 功能开关 ====================
+      # ==================== Feature Toggle ====================
       clean_build:
-        description: "清洁构建 (不集成 KernelSU、SUSFS 和可选补丁)"
+        description: "Clean build (excluding KernelSU, SUSFS, and optional patches)"
         type: boolean
         default: false
 
       use_zram:
-        description: "启用 ZRAM 增强算法"
+        description: "Enable ZRAM enhancement algorithm"
         type: boolean
         default: false
       use_bbg:
-        description: "启用 BBG 防格机"
+        description: "Enable BBG anti-crash protection"
         type: boolean
         default: false
       use_rekernel:
-        description: "启用 Re-Kernel 驱动"
+        description: "Enable Re-Kernel driver"
         type: boolean
         default: false
       use_nomount:
-        description: "启用 NoMount 挂载元模块（需配套模块）"
+        description: "Enable NoMount mount meta-module (requires supporting modules)"
         type: boolean
         default: false
       cve_2026_43499_patch:
-        description: "应用 CVE-2026-43499 rtmutex 修复链"
+        description: "Apply the CVE-2026-43499 rtmutex fix chain"
         type: boolean
         default: true
       cancel_susfs:
-        description: "禁用 SUSFS"
+        description: "Disable SUSFS"
         type: boolean
         default: false
 
-      # ==================== 构建版本选择 ====================
+      # ==================== Build Version Selection ====================
       build_target:
-        description: "选择构建目标；单次选择一个 KMI，或构建全部"
+        description: "Select a build target: a single KMI or build all"
         type: choice
         options:
           - all
@@ -119,16 +119,16 @@ on:
           - android17-6.18
         default: all
       build_kernel_version:
-        description: "按内核版本及所选 KMI 构建（优先于上方版本选择）"
+        description: "Build based on kernel version and selected KMI (takes precedence over the version selection above)"
         type: boolean
         default: false
       kernel_version_filter:
-        description: "内核版本，如 6.6.66 或 6.6.X（X 不区分大小写，以 X 结尾时则构建该内核大版本的所有子版本）"
+        description: "Kernel version, such as 6.6.66 or 6.6.X (X is case-insensitive; ending with X triggers the build of all sub-versions for that major kernel version)."
         type: string
         default: ""
         required: false
       kernel_android_version:
-        description: "构建 5.10/5.15 时选择 Android KMI；6.1 及以上保持 auto"
+        description: "Select Android KMI when building 5.10/5.15; keep as 'auto' for 6.1 and later"
         type: choice
         options:
           - auto
@@ -137,9 +137,9 @@ on:
           - android14
         default: auto
 
-      # ==================== Bot-Push 选项 ====================
+      # ==================== Bot-Push Options ====================
       change_log:
-        description: "Change Log (可选，支持多行)"
+        description: "Change Log (optional, supports multiple lines)"
         type: string
         default: ""
         required: false
@@ -150,7 +150,7 @@ jobs:
     outputs:
       sha: ${{ steps.resolve.outputs.sha }}
     steps:
-      - name: 固定 BakaSU 构建提交
+      - name: BakaSU build commit
         id: resolve
         if: inputs.clean_build != true
         env:
@@ -164,7 +164,7 @@ jobs:
             sha=$(git ls-remote --heads https://github.com/Baka-SU/BakaSU.git "refs/heads/$KSU_BRANCH" | awk '{ print $1 }')
           fi
           if [[ ! "$sha" =~ ^[a-fA-F0-9]{40}$ ]]; then
-            echo "::error::找不到 BakaSU 分支或提交: $KSU_BRANCH"
+            echo "::error::BakaSU branch or commit not found: $KSU_BRANCH"
             exit 1
           fi
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
@@ -183,20 +183,20 @@ jobs:
           ANDROID_CHOICE: ${{ inputs.kernel_android_version }}
         run: |
           if [[ ! "$KERNEL_FILTER" =~ ^([0-9]+\.[0-9]+)\.([0-9]+|[xX])$ ]]; then
-            echo "::error::内核版本格式应为 6.6.66 或 6.6.X"
+            echo "::error::The kernel version format should be 6.6.66 或 6.6.X"
             exit 1
           fi
           kernel_series="${BASH_REMATCH[1]}"
           case "$kernel_series" in
             5.10)
               if [[ "$ANDROID_CHOICE" != android12 && "$ANDROID_CHOICE" != android13 ]]; then
-                echo "::error::5.10 有 Android 12 和 13 两个 KMI，请明确选择 android12 或 android13"
+                echo "::error::5.10 has two KMIs: Android 12 and Android 13，please make a clear choice android12 or android13"
                 exit 1
               fi
               deduplicate=false ;;
             5.15)
               if [[ "$ANDROID_CHOICE" != android13 && "$ANDROID_CHOICE" != android14 ]]; then
-                echo "::error::5.15 有 Android 13 和 14 两个 KMI，请明确选择 android13 或 android14"
+                echo "::error::5.15 supports both Android 13 and Android 14 KMIs; please explicitly select either android13 or android14"
                 exit 1
               fi
               deduplicate=true ;;
@@ -253,7 +253,7 @@ jobs:
       use_nomount: ${{ inputs.use_nomount || false }}
       build_bypass: ${{ inputs.build_bypass || false }}
 
-  # ==================== Android 12 - 5.10 构建 ====================
+  # ==================== Android 12 - 5.10 Build ====================
   build-a12-5-10:
     if: ${{ !inputs.build_kernel_version && (inputs.build_target == 'android12-5.10' || inputs.build_target == 'all') }}
     needs: resolve-ksu-ref
@@ -274,7 +274,7 @@ jobs:
       use_nomount: ${{ inputs.use_nomount }}
       build_bypass: ${{ inputs.build_bypass }}
 
-  # ==================== Android 13 - 5.10 构建 ====================
+  # ==================== Android 13 - 5.10 Build ====================
   build-a13-5-10:
     if: ${{ !inputs.build_kernel_version && (inputs.build_target == 'android13-5.10' || inputs.build_target == 'all') }}
     needs: resolve-ksu-ref
@@ -295,7 +295,7 @@ jobs:
       use_nomount: ${{ inputs.use_nomount }}
       build_bypass: ${{ inputs.build_bypass }}
 
-  # ==================== Android 13 - 5.15 构建 ====================
+  # ==================== Android 13 - 5.15 Build ====================
   build-a13-5-15:
     if: ${{ !inputs.build_kernel_version && (inputs.build_target == 'android13-5.15' || inputs.build_target == 'all') }}
     needs: resolve-ksu-ref
@@ -316,7 +316,7 @@ jobs:
       use_nomount: ${{ inputs.use_nomount }}
       build_bypass: ${{ inputs.build_bypass }}
 
-  # ==================== Android 14 - 5.15 构建 ====================
+  # ==================== Android 14 - 5.15 Build ====================
   build-a14-5-15:
     if: ${{ !inputs.build_kernel_version && (inputs.build_target == 'android14-5.15' || inputs.build_target == 'all') }}
     needs: resolve-ksu-ref
@@ -338,7 +338,7 @@ jobs:
       use_nomount: ${{ inputs.use_nomount }}
       build_bypass: ${{ inputs.build_bypass }}
 
-  # ==================== Android 14 - 6.1 构建 ====================
+  # ==================== Android 14 - 6.1 Build ====================
   build-a14-6-1:
     if: ${{ !inputs.build_kernel_version && (inputs.build_target == 'android14-6.1' || inputs.build_target == 'all') }}
     needs: resolve-ksu-ref
@@ -359,7 +359,7 @@ jobs:
       use_nomount: ${{ inputs.use_nomount }}
       build_bypass: ${{ inputs.build_bypass }}
 
-  # ==================== Android 15 - 6.6 构建 ====================
+  # ==================== Android 15 - 6.6 Build ====================
   build-a15-6-6:
     if: ${{ !inputs.build_kernel_version && (inputs.build_target == 'android15-6.6' || inputs.build_target == 'all') }}
     needs: resolve-ksu-ref
@@ -380,7 +380,7 @@ jobs:
       use_nomount: ${{ inputs.use_nomount }}
       build_bypass: ${{ inputs.build_bypass }}
 
-  # ==================== Android 16 - 6.12 构建 ====================
+  # ==================== Android 16 - 6.12 Build ====================
   build-a16-6-12:
     if: ${{ !inputs.build_kernel_version && (inputs.build_target == 'android16-6.12' || inputs.build_target == 'all') }}
     needs: resolve-ksu-ref
@@ -401,7 +401,7 @@ jobs:
       use_nomount: ${{ inputs.use_nomount }}
       build_bypass: ${{ inputs.build_bypass }}
 
-  # ==================== Android 17 - 6.18 构建 ====================
+  # ==================== Android 17 - 6.18 Build ====================
   build-a17-6-18:
     if: ${{ !inputs.build_kernel_version && (inputs.build_target == 'android17-6.18' || inputs.build_target == 'all') }}
     needs: resolve-ksu-ref
@@ -422,8 +422,8 @@ jobs:
       use_nomount: ${{ inputs.use_nomount }}
       build_bypass: ${{ inputs.build_bypass }}
 
-  # ==================== 收集补丁冲突文件 ====================
-  # 汇总所有构建任务中的 .rej 文件，方便调试补丁问题
+  # ==================== Collect patch conflict files ====================
+  # Aggregate .rej files from all build tasks to facilitate debugging patch issues.
   collect-rejects:
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
